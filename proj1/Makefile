@@ -4,23 +4,23 @@ CC=gcc
 all: client server 
 	
 client: 
-	$(CC) echoClient.cpp -o echoClient
+	$(CC) Client.cpp -o Client
 
 server: 
-	$(CC) echoServer.cpp -o echoServer
+	$(CC) Server.cpp -o Server
 
 	
 clean:
-	rm ./echoServer ./echoClient
+	rm ./Server ./Client
 	
 runServer: all
-	./echoServer echos 8090
+	./Server echos 8090
 	
 runClient1:	
-	./echoClient echo 127.0.0.1 8090
+	./Client echo 127.0.0.1 8090
 
 runClient2:	
-	./echoClient echo 127.0.0.1 8090
+	./Client echo 127.0.0.1 8090
 
 runClient3:	
-	./echoClient echo 127.0.0.1 8090
+	./Client echo 127.0.0.1 8090
