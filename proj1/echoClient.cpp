@@ -13,41 +13,43 @@
 #define commandString "echo"
 int main(int argc,char **argv)
 {
-    if (argc != 4){
+	//	command check
+    if(argc != 4) {
         printf("Length of command is wrong, expected length is 4 !\n");
         exit(1);
-    }
-    if (strcmp(commandString,argv[1]) != 0){
+    } else if(strcmp(commandString, argv[1]) != 0) {
         printf("Wrong command, expected \"echo\" !\n");
         exit(1);
     }
-    int sockfd,n;
+	
+    int sockfd, n;
     char sendline[100];
     char recvline[100];
     struct sockaddr_in servaddr;
  
-    sockfd=socket(AF_INET,SOCK_STREAM,0);
-    bzero(&servaddr,sizeof servaddr);
+	//	socket() with TCP/IPv4
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    bzero(&servaddr, sizeof(servaddr));
  
-    servaddr.sin_family=AF_INET;
-    servaddr.sin_port=htons(atoi(argv[3]));
- 
-    inet_pton(AF_INET,argv[2],&(servaddr.sin_addr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(atoi(argv[3]));
+ 	
+    inet_pton(AF_INET, argv[2], &(servaddr.sin_addr));
     printf("\nReady for sending...");
  
-    connect(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
+	// connect()
+    connect(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
     printf("\nEnter the message to send\n");
-    while(1)
-    {
-        bzero( sendline, 100);
-        bzero( recvline, 100);
+    
+	while(1) {
+        bzero(sendline, 100);
+        bzero(recvline, 100);
         printf("\nClient: ");
-        fgets(sendline,100,stdin); /*stdin = 0 , for standard input */
+        fgets(sendline, 100, stdin); /*stdin = 0 , for standard input */
         
-        write(sockfd,sendline,strlen(sendline)+1);
-        read(sockfd,recvline,100);
-        printf("Serverecho:%s",recvline);
+        write(sockfd, sendline, strlen(sendline)+1);
+        read(sockfd, recvline, 100);
+        printf("Serverecho:%s", recvline);
         printf("\n");
     }
- 
 }
