@@ -12,8 +12,21 @@
 #include <signal.h>
 
 #define commandString "echos"
+#define MAX_TEXT_LEN 100	//	the maximum length of text 
+#define BUFF_SIZE 100	//	the size of buffer
 
-int main(int argc,char *argv[]) {
+
+void sigchld_handler(int s) {
+    //  waitpid() migh overwriten errno, so we save and restore it:
+    int saved_errno = errno;
+    
+    while(waitpid(-1 , NULL, WNOHANG) > 0);
+    
+    errno = saved_errno;
+    
+}
+
+int main(int argc, char *argv[]) {
     
 	//command check
 	if (argc != 3){
@@ -24,15 +37,16 @@ int main(int argc,char *argv[]) {
         exit(1);
     }
 	
-    char str[100];
-    int listen_fd, comm_fd;	// listen on socket listen_fd, and new connection on socket comm_fd 
-    socklen_t chilen;
+    char data_buff[BUFF_SIZE];
+    int sockfd, new_sockfd;
+    socklen_t childlen;
     pid_t pid;	//	process ID
-    struct sockaddr_in chiaddr; // connector's address information
+    struct sockaddr_in childaddr; // connector's address information
 	struct sockaddr_in servaddr;// server address information
+    struct sigaction sa;
 
 	//	socket() with IPv4/TCP
-	if((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("Socket Error");
 		exit(1);
 	}
@@ -42,46 +56,65 @@ int main(int argc,char *argv[]) {
     servaddr.sin_family = AF_INET;	// IPv4 byte order
     servaddr.sin_addr.s_addr = htons(INADDR_ANY);	//	automatically fill with my IP
     servaddr.sin_port = htons(atoi(argv[2]));	// short, network byte order PORT number
-    printf("\nStart");
 
 	// bind()
-    if(bind(listen_fd,(struct sockaddr *) &servaddr, sizeof(servaddr)) == -1){
+    if(bind(sockfd,(struct sockaddr *) &servaddr, sizeof(servaddr)) == -1){
         perror("Bind Error");
         exit(1);
     }
 
-    printf("\nListening...");
-    printf("\n");
-    
 	// listen() with maximum 10 connections
-	listen(listen_fd, 10);
+	if(listen(sockfd, 10) == -1) {
+	    perror("Listen Error!");
+	    exit(1);
+	}
  
+    //  handle the zombie processes  
+    sa.sa_handler = sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    if(sigaction(SIGCHLD, &sa, NULL) == -1) {
+        perror("Sigaction Error!\n");
+        exit(1);
+    }
+    
+    
 	//	accept() with multi-process
     while(1) {
-        chilen=sizeof(chiaddr);
+        childlen = sizeof(childaddr);
 
-        if((comm_fd = accept(listen_fd, (struct sockaddr*) &chiaddr, &chilen)) == -1 ) {
-			printf("accept client error: %s\n",strerror(errno));
-			return -1;
+        if((new_sockfd = accept(sockfd, (struct sockaddr*) &childaddr, &childlen)) == -1 ) {
+			printf("Accept client error: %s\n", strerror(errno));
+			exit(1);
         } else {
-            printf("client connected\n");
+            printf("Client connected\n");
         }        
          
         pid = fork(); 
         if(pid == 0) {	//	child process return
-            close(listen_fd);	// child doesn't need the listener
-            printf("client from %s\n",inet_ntoa(chiaddr.sin_addr));
+
+            close(sockfd);	// child doesn't need the listener
+            printf("Client from %s\n", inet_ntoa(childaddr.sin_addr));
+
             while(1) {
-                bzero(str, 100);	//	intial clear buffer
-                read(comm_fd,str,100);
-                printf("Echoing back - %s",str);
-                write(comm_fd, str, strlen(str)+1);
+                bzero(data_buff, BUFF_SIZE);	//	intial clear buffer
+
+                //  readline()
+                if(read(new_sockfd, data_buff, BUFF_SIZE) == 0) {
+                };
+                //readline(new_sockfd, data_buff, BUFF_SIZE);
+                printf("Message from Client\n");
+                printf("******************************************************\n");
+                printf("%s", data_buff);
+                printf("\n******************************************************\n");
+                printf("Echo back...\n");
+                write(new_sockfd, data_buff, strlen(data_buff) + 1);
             }
             exit(0);    
         } else if (pid < 0) {	//	fork error return 
-        	printf("fork error: %s\n",strerror(errno));
+        	printf("fork error: %s\n", strerror(errno));
         } else {	//	parent process return
-            close(comm_fd);	//	parent doesn't need this
+            close(new_sockfd);	//	parent doesn't need this
         }
     }
 }

@@ -10,9 +10,14 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include "helper.cpp"
+
 #define commandString "echo"
-int main(int argc,char **argv)
-{
+#define MAX_TEXT_LEN 100	//	the maximum length of text line
+#define BUFF_SIZE 100	//	the size of buffer
+
+int main(int argc,char **argv) {
+
 	//	command check
     if(argc != 4) {
         printf("Length of command is wrong, expected length is 4 !\n");
@@ -23,33 +28,47 @@ int main(int argc,char **argv)
     }
 	
     int sockfd, n;
-    char sendline[100];
-    char recvline[100];
+    char send_buff[BUFF_SIZE];
+    char recv_buff[BUFF_SIZE];
     struct sockaddr_in servaddr;
  
 	//	socket() with TCP/IPv4
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     bzero(&servaddr, sizeof(servaddr));
  
+	//	servaddr config
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(atoi(argv[3]));
- 	
     inet_pton(AF_INET, argv[2], &(servaddr.sin_addr));
-    printf("\nReady for sending...");
  
 	// connect()
     connect(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
-    printf("\nEnter the message to send\n");
     
-	while(1) {
-        bzero(sendline, 100);
-        bzero(recvline, 100);
-        printf("\nClient: ");
-        fgets(sendline, 100, stdin); /*stdin = 0 , for standard input */
-        
-        write(sockfd, sendline, strlen(sendline)+1);
-        read(sockfd, recvline, 100);
-        printf("Serverecho:%s", recvline);
+	while(fgets(send_buff, BUFF_SIZE, stdin)) {
+					
+		//	writen()
+		//int sendByte = writen(sockfd, send_buff, strlen(send_buff) + 1);
+		int sendByte = write(sockfd, send_buff, strlen(send_buff) + 1);
+
+		if(sendByte == 0) {
+			break;
+		}
+		//	readline()
+		read(sockfd, recv_buff, BUFF_SIZE + 1);
+		//readline(sockfd, recv_buff, BUFF_SIZE + 1);
+		
+		//	print echo
+		printf("Echoing back from Server : \n");
+		printf("******************************************************\n");
+        printf("%s", recv_buff);
+        printf("\n******************************************************\n");
         printf("\n");
-    }
+
+        bzero(recv_buff, BUFF_SIZE + 1);
+        bzero(send_buff, BUFF_SIZE + 1);     
+	}
+		
+	printf("Client terminated!\n");
+	close(sockfd);
+	return 1;
 }
